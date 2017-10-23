@@ -4,7 +4,7 @@
 # Author: 		Matthieu Holtz
 # Year:   		2017
 # Project: 		wifi bridge
-# Description: 	This is the wifi Managed (or client) mode script
+# Description: 	        This is the wifi Managed (or client) mode script
 # ############################################################################
 
 
@@ -84,6 +84,24 @@ echo "option subnet-mask $ETH_IFACE_SUBNET_MASTK;" >> "$ICS_DHCP_CONF"
 echo "option routers $ETH_IFACE_IP;" >> "$ICS_DHCP_CONF"
 echo 'option domain-name "local.lan";' >> "$ICS_DHCP_CONF"
 echo "option domain-name-servers $ETH_DNS_SERVER;" >> "$ICS_DHCP_CONF"
+echo "option ntp-servers pool.ntp.org;" >> "$ICS_DHCP_CONF"
+
+echo "" >> "$ICS_DHCP_CONF"
+echo "#DHCP reservation by MAC addresses" > "$ICS_DHCP_CONF"
+echo "" >> "$ICS_DHCP_CONF"
+for it in ${DHCP_RESERVATIONS[@]}; do
+
+        MAC=`echo "$it" | cut -d: -f1`
+	IP=`echo "$it" | cut -d: -f2`
+	NAME=`echo "$it" | cut -d: -f3`
+
+	echo "host $NAME {" >> "$ICS_DHCP_CONF"
+	echo "      hardware ethernet $MAC;" >> "$ICS_DHCP_CONF"
+	echo "      fixed-address $IP;" >> "$ICS_DHCP_CONF"
+	echo "}" >> "$ICS_DHCP_CONF"
+
+done
+echo "" >> "$ICS_DHCP_CONF"
 
 echo "subnet $ETH_DHCP_SUBNET netmask $ETH_IFACE_SUBNET_MASTK {" >> "$ICS_DHCP_CONF"
 echo "   range $ETH_DHCP_START $ETH_DHCP_STOP;" >> "$ICS_DHCP_CONF"
