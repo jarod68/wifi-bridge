@@ -82,7 +82,7 @@ echo "default-lease-time 600;" > "$ICS_DHCP_CONF"
 echo "max-lease-time 7200;" >> "$ICS_DHCP_CONF"
 echo "option subnet-mask $ETH_IFACE_SUBNET_MASTK;" >> "$ICS_DHCP_CONF"
 echo "option routers $ETH_IFACE_IP;" >> "$ICS_DHCP_CONF"
-echo 'option domain-name "local.lan";' >> "$ICS_DHCP_CONF"
+echo 'option domain-name $ETH_DOMAIN_NAME;' >> "$ICS_DHCP_CONF"
 echo "option domain-name-servers $ETH_DNS_SERVER;" >> "$ICS_DHCP_CONF"
 echo "option ntp-servers pool.ntp.org;" >> "$ICS_DHCP_CONF"
 
