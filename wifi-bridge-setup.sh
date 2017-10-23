@@ -65,10 +65,10 @@ echo "PORT_FORWARDING exists... creating rules"
 
 for it in ${PORT_FORWARDING[@]}; do
 
-        PROTOCOL=`echo "$it" | cut -d: -f1`
-	PORT_FROM=`echo "$it" | cut -d: -f2`
-	IP=`echo "$it" | cut -d: -f3`
-        PORT_TO=`echo "$it" | cut -d: -f4`
+        PROTOCOL=`echo "$it" | cut -d ';' -f1`
+	PORT_FROM=`echo "$it" | cut -d ';' -f2`
+	IP=`echo "$it" | cut -d ';' -f3`
+        PORT_TO=`echo "$it" | cut -d ';' -f4`
 
 	iptables -t nat -A PREROUTING -i "$WLAN_IFACE_NAME" -p "$PROTOCOL" --dport "$PORT_FROM" -j DNAT --to "$IP":"$PORT_TO"
 	EchoStatus $? "Add PREROUTING forwarding for $PROTOCOL on input port $PORT_FROM to $IP (destination port $PORT_TO)"
@@ -91,9 +91,9 @@ echo "#DHCP reservation by MAC addresses" > "$ICS_DHCP_CONF"
 echo "" >> "$ICS_DHCP_CONF"
 for it in ${DHCP_RESERVATIONS[@]}; do
 
-        MAC=`echo "$it" | cut -d: -f1`
-	IP=`echo "$it" | cut -d: -f2`
-	NAME=`echo "$it" | cut -d: -f3`
+        MAC=`echo "$it" | cut -d ';' -f1`
+	IP=`echo "$it" | cut -d ';' -f2`
+	NAME=`echo "$it" | cut -d ';' -f3`
 
 	echo "host $NAME {" >> "$ICS_DHCP_CONF"
 	echo "      hardware ethernet $MAC;" >> "$ICS_DHCP_CONF"
