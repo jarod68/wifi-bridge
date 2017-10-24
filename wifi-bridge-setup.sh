@@ -16,8 +16,6 @@ source "$my_dir/wifi-helpers"
 echo "Use config file from $my_dir"
 cp "$my_dir/wifi-bridge.config" "/tmp/wifi-bridge.config"
 
-umount /tmp/boot-fatsys
-
 source /tmp/wifi-bridge.config
 
 KillProcess
@@ -26,7 +24,7 @@ WPA_SUPPLICANT_CONF="/tmp/wpa_supplicant.conf"
 ICS_DHCP_CONF="/tmp/dhcpd.conf"
 
 # Change mode to managed :
-
+iw reg set FR
 iwconfig "$WLAN_IFACE_NAME" mode managed
 EchoStatus $? "Set $WLAN_IFACE_NAME to managed"
 
@@ -38,7 +36,9 @@ EchoStatus $? "Generate $WPA_SUPPLICANT_CONF for SSID $CLIENT_ESSID"
 
 # Start wpa_supplicant :
 
-wpa_supplicant -B -D wext -i "$WLAN_IFACE_NAME" -c "$WPA_SUPPLICANT_CONF"
+wpa_supplicant -B -i "$WLAN_IFACE_NAME" -c "$WPA_SUPPLICANT_CONF"
+
+#wpa_supplicant -B -D wext -i "$WLAN_IFACE_NAME" -c "$WPA_SUPPLICANT_CONF"
 EchoStatus $? "Start wpa_supplicant"
 
 sleep 2
@@ -82,7 +82,7 @@ echo "default-lease-time 600;" > "$ICS_DHCP_CONF"
 echo "max-lease-time 7200;" >> "$ICS_DHCP_CONF"
 echo "option subnet-mask $ETH_IFACE_SUBNET_MASTK;" >> "$ICS_DHCP_CONF"
 echo "option routers $ETH_IFACE_IP;" >> "$ICS_DHCP_CONF"
-echo 'option domain-name "'"$ETH_DOMAIN_NAME"'";' >> "$ICS_DHCP_CONF"
+#echo 'option domain-name "'"$ETH_DOMAIN_NAME"'";' >> "$ICS_DHCP_CONF"
 echo "option domain-name-servers $ETH_DNS_SERVER;" >> "$ICS_DHCP_CONF"
 echo "option ntp-servers pool.ntp.org;" >> "$ICS_DHCP_CONF"
 
