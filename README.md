@@ -1,6 +1,13 @@
 # wifi-bridge
 Wifi bridge WLAN <-> ETH for a raspbery pi (tested and running on raspbian, but could be adapted for other OS)
 
+It uses:
+* wpa_supplicant
+* isc dhcpd
+* iptables
+* samba
+* nginx
+
 # Installation
 To install run wifi-bridge-setup.sh, it will create a service in /etc/init.d called wifi-bridge and enable it for boot start. 
 The configuration file wifi-bridge.config allows you to configure IP address / dhcp / forwarding / SSID and WPA key
@@ -20,3 +27,7 @@ Theses files are also served under smb://ETH_IP/log
 ## Additional info
 A samba server is running to store some file if needed
 All the files / subscripts are generated while running and starting and put in the /tmp location
+
+---
+
+Feel free to improve and modify
