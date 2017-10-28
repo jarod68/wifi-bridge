@@ -16,13 +16,22 @@ SERVICE_NAME="wifi-bridge"
 INITD_SCRIPT_PATH="/etc/init.d/$SERVICE_NAME"
 SAMBA_SHARE_PATH="/share"
 SAMBA_SHARE_PATH_LOG="/tmp/log"
-SAMBA_CONFIG_PATH="/etc/samba/smb.conf"
+SAMBA_CONFIG_PATH="/etc/wifi-bridge/smb.conf"
+NGINX_CONFIG_PATH="/etc/wifi-bridge/nginx.conf"
+
+if [ -d "/etc/wifi-bridge" ]; then  
+   rm -R "/etc/wifi-bridge"
+   EchoStatus $? "Delete /etc/wifi-bridge"
+fi
+
+mkdir -p "/etc/wifi-bridge"
+EchoStatus $? "Create /etc/wifi-bridge"
 
 sudo apt-get update
 
 EchoStatus $? "Packet manager update"
 
-sudo apt-get -y install wireless-tools wpasupplicant isc-dhcp-client isc-dhcp-server sed iptables samba
+sudo apt-get -y install wireless-tools wpasupplicant isc-dhcp-client isc-dhcp-server sed iptables samba nginx
 
 EchoStatus $? "Packet manager install dependencies"
 
@@ -51,6 +60,8 @@ echo "" >> "$INITD_SCRIPT_PATH"
 echo "function process_stop {" >> "$INITD_SCRIPT_PATH"
 echo "    KillProcess" >> "$INITD_SCRIPT_PATH"
 echo "    killall smbd" >> "$INITD_SCRIPT_PATH"
+echo "    nginx -s stop" >> "$INITD_SCRIPT_PATH"
+echo "    killall nginx" >> "$INITD_SCRIPT_PATH"
 echo '    if [ -f /tmp/checkup_proc_pid ]' >> "$INITD_SCRIPT_PATH"
 echo '    then' >> "$INITD_SCRIPT_PATH"
 echo '      PID_TO_KILL=`cat /tmp/checkup_proc_pid`' >> "$INITD_SCRIPT_PATH"
@@ -63,7 +74,7 @@ echo "" >> "$INITD_SCRIPT_PATH"
 
 echo "function process_start {" >> "$INITD_SCRIPT_PATH"
 echo '    echo "Creating /tmp/wifi-bridge-checkup.sh"' >> "$INITD_SCRIPT_PATH"
-
+echo '    mkdir -p "'"$SAMBA_SHARE_PATH_LOG"'"' >> "$INITD_SCRIPT_PATH"
 echo '    echo "'"$SAMBA_SHARE_PATH_LOG"'" > /tmp/wifi-bridge-log-path' >> "$INITD_SCRIPT_PATH"
 
 echo '    echo "#!/bin/bash" > /tmp/wifi-bridge-checkup.sh' >> "$INITD_SCRIPT_PATH"
@@ -74,6 +85,8 @@ echo '    echo "  ping -q -c2 www.google.com > /dev/null" >> /tmp/wifi-bridge-ch
 #the $ here is because the quote owns a quote inside...bash trick
 echo $'    echo \'  if [ $? -ne 0 ]\' >> /tmp/wifi-bridge-checkup.sh' >> "$INITD_SCRIPT_PATH"
 echo '    echo "  then" >> /tmp/wifi-bridge-checkup.sh' >> "$INITD_SCRIPT_PATH"
+echo $'    echo \'  if [ $(wc -l < "'$SAMBA_SHARE_PATH_LOG$'/wifi-bridge-checkup.log") -ge 1024 ]; then rm "'$SAMBA_SHARE_PATH_LOG$'/wifi-bridge-checkup.log"; fi\' >> /tmp/wifi-bridge-checkup.sh' >> "$INITD_SCRIPT_PATH"
+
 echo '    echo "'"    $my_dir/wifi-bridge-setup.sh"'" >> /tmp/wifi-bridge-checkup.sh' >> "$INITD_SCRIPT_PATH"
 echo '    echo "   date -u >> '"$SAMBA_SHARE_PATH_LOG"'/wifi-bridge-checkup.log" >> /tmp/wifi-bridge-checkup.sh' >> "$INITD_SCRIPT_PATH"
 echo '    echo "   echo Restart wifi-bridge on ping error >> '"$SAMBA_SHARE_PATH_LOG"'/wifi-bridge-checkup.log" >> /tmp/wifi-bridge-checkup.sh' >> "$INITD_SCRIPT_PATH"
@@ -91,6 +104,8 @@ echo '    echo "$CHECKUP_PROC_PID" > /tmp/checkup_proc_pid' >> "$INITD_SCRIPT_PA
 echo '    echo "Launch /tmp/wifi-bridge-checkup.sh with PID $CHECKUP_PROC_PID"' >> "$INITD_SCRIPT_PATH"
 echo "    # Start samba" >> "$INITD_SCRIPT_PATH"
 echo "    smbd -s $SAMBA_CONFIG_PATH" >> "$INITD_SCRIPT_PATH"
+echo "    # Start nginx" >> "$INITD_SCRIPT_PATH"
+echo "    nginx -c $NGINX_CONFIG_PATH" >> "$INITD_SCRIPT_PATH"
 echo "}" >> "$INITD_SCRIPT_PATH"
 
 echo "" >> "$INITD_SCRIPT_PATH"
@@ -201,4 +216,33 @@ sed -i '1s/^/# Generated on '"$timestamp"'\n/' "$SAMBA_CONFIG_PATH"
 
 EchoStatus $? "$SAMBA_CONFIG_PATH setting up=>"
 cat "$SAMBA_CONFIG_PATH"
+
+echo 'worker_processes  1;' > "$NGINX_CONFIG_PATH"
+echo 'pid /var/run/nginx.pid;' >> "$NGINX_CONFIG_PATH"
+echo 'events {' >> "$NGINX_CONFIG_PATH"
+echo '  worker_connections  128;' >> "$NGINX_CONFIG_PATH"
+echo '}' >> "$NGINX_CONFIG_PATH"
+echo '' >> "$NGINX_CONFIG_PATH"
+echo 'http {' >> "$NGINX_CONFIG_PATH"
+
+echo '  server {' >> "$NGINX_CONFIG_PATH"
+echo '    listen 80;' >> "$NGINX_CONFIG_PATH"
+
+echo '    location / {' >> "$NGINX_CONFIG_PATH"
+echo "      root $SAMBA_SHARE_PATH_LOG;" >> "$NGINX_CONFIG_PATH"
+echo '      autoindex on;' >> "$NGINX_CONFIG_PATH"
+echo '    }' >> "$NGINX_CONFIG_PATH"
+echo '  }' >> "$NGINX_CONFIG_PATH"
+echo '}' >> "$NGINX_CONFIG_PATH"
+
+sed -i '1s/^/# Generated on '"$timestamp"'\n/' "$NGINX_CONFIG_PATH"
+
+EchoStatus $? "$NGINX_CONFIG_PATH setting up=>"
+cat "$NGINX_CONFIG_PATH"
+
+update-rc.d apache2 disable
+EchoStatus $? "Disable apache2 autostart (if not install could be NOK)"
+
+update-rc.d -f nginx disable
+EchoStatus $? "Disable nginx autostart"
 

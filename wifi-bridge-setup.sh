@@ -79,11 +79,23 @@ done
 
 # Create /tmp/wifi-bridge-dhcpd-logger.sh
 
+# First create the static readme file
+echo " " > "$DHCPD_LOG_FILE"/readme.txt
+echo "Description: This is a wifi bridge router, serving internet from an access point connected as a managed client" >> "$DHCPD_LOG_FILE"/readme.txt
+echo "Author     : Matthieu Holtz" >> "$DHCPD_LOG_FILE"/readme.txt
+echo "Year       : 2017" >> "$DHCPD_LOG_FILE"/readme.txt
+echo "Project    : https://github.com/jarod68/wifi-bridge" >> "$DHCPD_LOG_FILE"/readme.txt
+sed -i '1s/^/# Generated on '"$timestamp"'\n/' "$DHCPD_LOG_FILE"/readme.txt
+
+# Then create the script
 echo "#!/bin/bash" >/tmp/wifi-bridge-dhcpd-logger.sh
 echo "" >>/tmp/wifi-bridge-dhcpd-logger.sh
-echo '#if [ $# -ne 4 ]; then exit 1; fi' >>/tmp/wifi-bridge-dhcpd-logger.sh
-echo 'echo "$1" "$2" "$3" "$4" >> "'"$DHCPD_LOG_FILE"/wifi-bridge-leases.log'"' >>/tmp/wifi-bridge-dhcpd-logger.sh
-sed -i '1s/^/# Generated on '"$timestamp"'\n/' "/tmp/wifi-bridge-dhcpd-logger.sh"
+echo "# Prevent the file of being too big!!" >>/tmp/wifi-bridge-dhcpd-logger.sh
+echo 'if [ $(wc -l < "'"$DHCPD_LOG_FILE"'/wifi-bridge-leases.txt") -ge 128 ]; then rm "'"$DHCPD_LOG_FILE"'/wifi-bridge-leases.txt"; fi' >> /tmp/wifi-bridge-dhcpd-logger.sh
+
+echo 'if [ $# -ne 4 ]; then exit 1; fi' >>/tmp/wifi-bridge-dhcpd-logger.sh
+echo 'echo "$1" "$2" "$3" "$4" >> "'"$DHCPD_LOG_FILE"/wifi-bridge-leases.txt'"' >>/tmp/wifi-bridge-dhcpd-logger.sh
+sed -i '1s/^/# Generated on '"$timestamp"'\n/' "/tmp/wifi-bridge-dhcpd-logger.txt"
 
 chmod 777 "/tmp/wifi-bridge-dhcpd-logger.sh"
 
