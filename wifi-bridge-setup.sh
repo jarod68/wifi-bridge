@@ -16,6 +16,8 @@ source "$my_dir/wifi-helpers"
 echo "Use config file from $my_dir"
 cp "$my_dir/wifi-bridge.config" "/tmp/wifi-bridge.config"
 
+DHCPD_LOG_FILE=$(cat /tmp/wifi-bridge-log-path)
+
 source /tmp/wifi-bridge.config
 
 KillProcess
@@ -75,6 +77,16 @@ for it in ${PORT_FORWARDING[@]}; do
 
 done
 
+# Create /tmp/wifi-bridge-dhcpd-logger.sh
+
+echo "#!/bin/bash" >/tmp/wifi-bridge-dhcpd-logger.sh
+echo "" >>/tmp/wifi-bridge-dhcpd-logger.sh
+echo '#if [ $# -ne 4 ]; then exit 1; fi' >>/tmp/wifi-bridge-dhcpd-logger.sh
+echo 'echo "$1" "$2" "$3" "$4" >> "'"$DHCPD_LOG_FILE"/wifi-bridge-leases.log'"' >>/tmp/wifi-bridge-dhcpd-logger.sh
+sed -i '1s/^/# Generated on '"$timestamp"'\n/' "/tmp/wifi-bridge-dhcpd-logger.sh"
+
+chmod 777 "/tmp/wifi-bridge-dhcpd-logger.sh"
+
 # Configure DHCP server
 
 echo "authoritative;" > "$ICS_DHCP_CONF"
@@ -107,6 +119,33 @@ echo "" >> "$ICS_DHCP_CONF"
 
 echo "subnet $ETH_DHCP_SUBNET netmask $ETH_IFACE_SUBNET_MASTK {" >> "$ICS_DHCP_CONF"
 echo "   range $ETH_DHCP_START $ETH_DHCP_STOP;" >> "$ICS_DHCP_CONF"
+
+echo "" >> "$ICS_DHCP_CONF"
+echo '   on commit {' >> "$ICS_DHCP_CONF"
+echo '   set clip = binary-to-ascii(10, 8, ".", leased-address);' >> "$ICS_DHCP_CONF"
+echo '   set clhw = binary-to-ascii(16, 8, ":", substring(hardware, 1, 6));' >> "$ICS_DHCP_CONF"
+echo '   set name = pick-first-value(option host-name, noname);' >> "$ICS_DHCP_CONF"
+echo '   execute("/tmp/wifi-bridge-dhcpd-logger.sh", "commit", clip, clhw, name);' >> "$ICS_DHCP_CONF"
+echo '   }' >> "$ICS_DHCP_CONF"
+echo "" >> "$ICS_DHCP_CONF"
+
+echo "" >> "$ICS_DHCP_CONF"
+echo '   on release {' >> "$ICS_DHCP_CONF"
+echo '   set clip = binary-to-ascii(10, 8, ".", leased-address);' >> "$ICS_DHCP_CONF"
+echo '   set clhw = binary-to-ascii(16, 8, ":", substring(hardware, 1, 6));' >> "$ICS_DHCP_CONF"
+echo '   set name = pick-first-value(option host-name, noname);' >> "$ICS_DHCP_CONF"
+echo '   execute("/tmp/wifi-bridge-dhcpd-logger.sh", "release", clip, clhw, name);' >> "$ICS_DHCP_CONF"
+echo '   }' >> "$ICS_DHCP_CONF"
+echo "" >> "$ICS_DHCP_CONF"
+
+echo "" >> "$ICS_DHCP_CONF"
+echo '   on expiry {' >> "$ICS_DHCP_CONF"
+echo '   set clip = binary-to-ascii(10, 8, ".", leased-address);' >> "$ICS_DHCP_CONF"
+echo '   set clhw = binary-to-ascii(16, 8, ":", substring(hardware, 1, 6));' >> "$ICS_DHCP_CONF"
+echo '   set name = pick-first-value(option host-name, noname);' >> "$ICS_DHCP_CONF"
+echo '   execute("/tmp/wifi-bridge-dhcpd-logger.sh", "expiry", clip, clhw, name);' >> "$ICS_DHCP_CONF"
+echo '   }' >> "$ICS_DHCP_CONF"
+echo "" >> "$ICS_DHCP_CONF"
 echo "}" >> "$ICS_DHCP_CONF"
 
 sed -i '1s/^/# Generated on '"$timestamp"'\n/' "$ICS_DHCP_CONF"
