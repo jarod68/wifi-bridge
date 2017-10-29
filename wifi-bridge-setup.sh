@@ -94,7 +94,8 @@ echo "# Prevent the file of being too big!!" >>/tmp/wifi-bridge-dhcpd-logger.sh
 echo 'if [ $(wc -l < "'"$DHCPD_LOG_FILE"'/wifi-bridge-leases.txt") -ge 128 ]; then rm "'"$DHCPD_LOG_FILE"'/wifi-bridge-leases.txt"; fi' >> /tmp/wifi-bridge-dhcpd-logger.sh
 
 echo 'if [ $# -ne 4 ]; then exit 1; fi' >>/tmp/wifi-bridge-dhcpd-logger.sh
-echo 'echo "$1" "$2" "$3" "$4" >> "'"$DHCPD_LOG_FILE"/wifi-bridge-leases.txt'"' >>/tmp/wifi-bridge-dhcpd-logger.sh
+echo 'timestamp=`date`' >>/tmp/wifi-bridge-dhcpd-logger.sh
+echo 'echo "$timestamp" "$1" "$2" "$3" "$4" >> "'"$DHCPD_LOG_FILE"/wifi-bridge-leases.txt'"' >>/tmp/wifi-bridge-dhcpd-logger.sh
 sed -i '1s/^/# Generated on '"$timestamp"'\n/' "/tmp/wifi-bridge-dhcpd-logger.txt"
 
 chmod 777 "/tmp/wifi-bridge-dhcpd-logger.sh"
