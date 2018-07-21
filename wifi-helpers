@@ -25,7 +25,7 @@ EchoStatus()
 # Kill the processes launched during wifi scripts execution
 KillProcess()
 {
-	#killall hostapd
+	killall hostapd
 	EchoStatus $? "Kill hostapd"
 
 	killall dhcpd

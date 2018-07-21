@@ -22,48 +22,60 @@ source /tmp/wifi-bridge.config
 
 KillProcess
 
-WPA_SUPPLICANT_CONF="/tmp/wpa_supplicant.conf"
+HOSTAPD_CONF="/tmp/wpa_supplicant.conf"
 ICS_DHCP_CONF="/tmp/dhcpd.conf"
 
-# Change mode to managed :
-iw reg set FR
-iwconfig "$WLAN_IFACE_NAME" mode managed
-EchoStatus $? "Set $WLAN_IFACE_NAME to managed"
+# Generate hostapd file :
 
-# Generate wpa_supplicant file :
+echo "ctrl_interface=/var/run/hostapd" > "$HOSTAPD_CONF"
+echo "driver=nl80211" >> "$HOSTAPD_CONF"
+echo "ieee80211n=1" >> "$HOSTAPD_CONF"
+echo "ctrl_interface_group=0" >> "$HOSTAPD_CONF"
+echo "beacon_int=100" >> "$HOSTAPD_CONF"
+echo "interface=$WLAN_IFACE_NAME" >> "$HOSTAPD_CONF"
+echo "ssid=$AP_SSID" >> "$HOSTAPD_CONF"
+echo "hw_mode=g" >> "$HOSTAPD_CONF"
+echo "channel=$AP_CHANNEL" >> "$HOSTAPD_CONF"
+echo "auth_algs=1" >> "$HOSTAPD_CONF"
+echo "wmm_enabled=1" >> "$HOSTAPD_CONF"
+echo "eap_reauth_period=360000000" >> "$HOSTAPD_CONF"
+echo "macaddr_acl=0" >> "$HOSTAPD_CONF"
+echo "ignore_broadcast_ssid=0" >> "$HOSTAPD_CONF"
+echo "wpa=2" >> "$HOSTAPD_CONF"
+echo "wpa_passphrase=$AP_WPA_PASSPHRASE" >> "$HOSTAPD_CONF"
+echo "wpa_key_mgmt=WPA-PSK" >> "$HOSTAPD_CONF"
+echo "wpa_pairwise=TKIP" >> "$HOSTAPD_CONF"
+echo "rsn_pairwise=CCMP" >> "$HOSTAPD_CONF"
 
-wpa_passphrase $CLIENT_ESSID "$CLIENT_WPA_PASSPHRASE" > "$WPA_SUPPLICANT_CONF"
-sed -i '1s/^/# Generated on '"$timestamp"'\n/' "$WPA_SUPPLICANT_CONF"
-EchoStatus $? "Generate $WPA_SUPPLICANT_CONF for SSID $CLIENT_ESSID"
+sed -i '1s/^/# Generated on '"$timestamp"'\n/' "$HOSTAPD_CONF"
 
-# Start wpa_supplicant :
+EchoStatus $? "Generate $HOSTAPD_CONF for SSID $AP_SSID on $WLAN_IFACE_NAME"
 
-wpa_supplicant -B -i "$WLAN_IFACE_NAME" -c "$WPA_SUPPLICANT_CONF"
-
-#wpa_supplicant -B -D wext -i "$WLAN_IFACE_NAME" -c "$WPA_SUPPLICANT_CONF"
-EchoStatus $? "Start wpa_supplicant"
+# Start hostapd :
+hostapd "$HOSTAPD_CONF" &
+EchoStatus $? "Start hostapd"
 
 sleep 2
 
-dhclient -4 "$WLAN_IFACE_NAME" &
+dhclient -4 "$ETH_IFACE_NAME" &
 
 EchoStatus $? "DHCLIENT on $WLAN_IFACE_NAME"
 
 # Configure eth and forwarding
 
-ifconfig "$ETH_IFACE_NAME" "$ETH_IFACE_IP" "$ETH_IFACE_SUBNET_MASTK" 
+ifconfig "$WLAN_IFACE_NAME" "$WLAN_IFACE_IP" "$WLAN_IFACE_SUBNET_MASTK" 
 
-EchoStatus $? "Set IP $ETH_IFACE_IP on $ETH_IFACE_NAME"
+EchoStatus $? "Set IP $WLAN_IFACE_IP on $WLAN_IFACE_NAME"
 
 echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
 
 EchoStatus $? "Enable ipv4 forwarding"
 
-iptables -t nat -A POSTROUTING -o "$WLAN_IFACE_NAME" -j MASQUERADE 
+iptables -t nat -A POSTROUTING -o "$ETH_IFACE_NAME" -j MASQUERADE 
 
 EchoStatus $? "Enable NAT masquerade"
 
-echo "PORT_FORWARDING exists... creating rules" 	
+echo "PORT_FORWARDING exists... creating rules"
 
 for it in ${PORT_FORWARDING[@]}; do
 
@@ -72,7 +84,7 @@ for it in ${PORT_FORWARDING[@]}; do
 	IP=`echo "$it" | cut -d ';' -f3`
         PORT_TO=`echo "$it" | cut -d ';' -f4`
 
-	iptables -t nat -A PREROUTING -i "$WLAN_IFACE_NAME" -p "$PROTOCOL" --dport "$PORT_FROM" -j DNAT --to "$IP":"$PORT_TO"
+	iptables -t nat -A PREROUTING -i "$ETH_IFACE_NAME" -p "$PROTOCOL" --dport "$PORT_FROM" -j DNAT --to "$IP":"$PORT_TO"
 	EchoStatus $? "Add PREROUTING forwarding for $PROTOCOL on input port $PORT_FROM to $IP (destination port $PORT_TO)"
 
 done
@@ -81,9 +93,9 @@ done
 
 # First create the static readme file
 echo " " > "$DHCPD_LOG_FILE"/readme.txt
-echo "Description: This is a wifi bridge router, serving internet from an access point connected as a managed client" >> "$DHCPD_LOG_FILE"/readme.txt
+echo "Description: This is a wifi bridge router, serving internet to an access point" >> "$DHCPD_LOG_FILE"/readme.txt
 echo "Author     : Matthieu Holtz" >> "$DHCPD_LOG_FILE"/readme.txt
-echo "Year       : 2017" >> "$DHCPD_LOG_FILE"/readme.txt
+echo "Year       : 2018" >> "$DHCPD_LOG_FILE"/readme.txt
 echo "Project    : https://github.com/jarod68/wifi-bridge" >> "$DHCPD_LOG_FILE"/readme.txt
 sed -i '1s/^/# Generated on '"$timestamp"'\n/' "$DHCPD_LOG_FILE"/readme.txt
 
@@ -105,10 +117,10 @@ chmod 777 "/tmp/wifi-bridge-dhcpd-logger.sh"
 echo "authoritative;" > "$ICS_DHCP_CONF"
 echo "default-lease-time 600;" > "$ICS_DHCP_CONF"
 echo "max-lease-time 7200;" >> "$ICS_DHCP_CONF"
-echo "option subnet-mask $ETH_IFACE_SUBNET_MASTK;" >> "$ICS_DHCP_CONF"
-echo "option routers $ETH_IFACE_IP;" >> "$ICS_DHCP_CONF"
-echo 'option domain-name "'"$ETH_DOMAIN_NAME"'";' >> "$ICS_DHCP_CONF"
-echo "option domain-name-servers $ETH_DNS_SERVER;" >> "$ICS_DHCP_CONF"
+echo "option subnet-mask $WLAN_IFACE_SUBNET_MASTK;" >> "$ICS_DHCP_CONF"
+echo "option routers $WLAN_IFACE_IP;" >> "$ICS_DHCP_CONF"
+echo 'option domain-name "'"$WLAN_DOMAIN_NAME"'";' >> "$ICS_DHCP_CONF"
+echo "option domain-name-servers $WLAN_DNS_SERVER;" >> "$ICS_DHCP_CONF"
 echo "option ntp-servers pool.ntp.org;" >> "$ICS_DHCP_CONF"
 
 echo "" >> "$ICS_DHCP_CONF"
@@ -130,8 +142,8 @@ for it in ${DHCP_RESERVATIONS[@]}; do
 done
 echo "" >> "$ICS_DHCP_CONF"
 
-echo "subnet $ETH_DHCP_SUBNET netmask $ETH_IFACE_SUBNET_MASTK {" >> "$ICS_DHCP_CONF"
-echo "   range $ETH_DHCP_START $ETH_DHCP_STOP;" >> "$ICS_DHCP_CONF"
+echo "subnet $WLAN_DHCP_SUBNET netmask $WLAN_IFACE_SUBNET_MASTK {" >> "$ICS_DHCP_CONF"
+echo "   range $WLAN_DHCP_START $WLAN_DHCP_STOP;" >> "$ICS_DHCP_CONF"
 
 echo "" >> "$ICS_DHCP_CONF"
 echo '   on commit {' >> "$ICS_DHCP_CONF"
@@ -169,8 +181,8 @@ cat "$ICS_DHCP_CONF"
 
 # Start the dhcpd server daemon :
 
-/usr/sbin/dhcpd -cf "$ICS_DHCP_CONF" "$ETH_IFACE_NAME"
-EchoStatus $? "Start dhcpcd on $ETH_IFACE_NAME"
+/usr/sbin/dhcpd -cf "$ICS_DHCP_CONF" "$WLAN_IFACE_NAME"
+EchoStatus $? "Start dhcpcd on $WLAN_IFACE_NAME"
 
-echo "nameserver $ETH_DNS_SERVER" > /etc/resolv.conf
-EchoStatus $? "Sanitize /etc/resolv.conf with only $ETH_DNS_SERVER"
+echo "nameserver $WLAN_DNS_SERVER" > /etc/resolv.conf
+EchoStatus $? "Sanitize /etc/resolv.conf with only $WLAN_DNS_SERVER"
