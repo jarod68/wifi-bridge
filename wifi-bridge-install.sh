@@ -31,9 +31,47 @@ sudo apt-get update
 
 EchoStatus $? "Packet manager update"
 
-sudo apt-get -y install wireless-tools hostapd isc-dhcp-client isc-dhcp-server sed iptables samba nginx
-
+sudo apt-get -y install wireless-tools isc-dhcp-client isc-dhcp-server sed iptables samba nginx libssl-dev libnl2 libnl2-dev
 EchoStatus $? "Packet manager install dependencies"
+
+# Remove any previous hostapd files
+sudo apt-get purge -y hostapd
+sudo rm /usr/local/bin/hostapd*
+sudo rm /usr/bin/hostapd*
+sudo rm /usr/sbin/hostapd*
+
+cd /tmp
+wget https://w1.fi/releases/hostapd-2.6.tar.gz
+git clone https://github.com/pritambaral/hostapd-rtl871xdrv.git -b hostapd_2_6
+
+tar -xzvf hostapd-2.6.tar.gz
+cd hostapd-2.6
+patch -Np1 -i ../hostapd-rtl871xdrv/rtlxdrv.patch
+
+cd hostapd
+
+cp defconfig .config
+
+echo "CONFIG_DRIVER_RTW=y" >> .config
+echo "CONFIG_HS20=y" >> .config
+#echo "CONFIG_INTERNAL_LIBTOMMATH_FAST=y" >> .config
+echo "CONFIG_HS20=y" >> .config
+echo "CONFIG_FST=y" >> .config
+#echo "CONFIG_IAPP=y" >> .config
+echo "CONFIG_IEEE80211N=y" >> .config
+echo "CONFIG_IEEE80211R=y" >> .config
+echo "CONFIG_LIBNL20=y" >> .config
+#echo "CFLAGS += -I//usr/include/libnl3" >> .config
+#echo "LIBS += -L//lib/arm-linux-gnueabihf/" >> .config
+
+make
+
+EchoStatus $? "Compile hostapd"
+
+sudo make install DESTDIR= BINDIR=/usr/sbin
+
+EchoStatus $? "Install hostapd"
+
 
 echo "#!/bin/bash" > "$INITD_SCRIPT_PATH"
 

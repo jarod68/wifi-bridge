@@ -28,7 +28,7 @@ ICS_DHCP_CONF="/tmp/dhcpd.conf"
 # Generate hostapd file :
 
 echo "ctrl_interface=/var/run/hostapd" > "$HOSTAPD_CONF"
-echo "driver=nl80211" >> "$HOSTAPD_CONF"
+echo "driver=$AP_HOSTAPD_DRIVER" >> "$HOSTAPD_CONF"
 echo "ieee80211n=1" >> "$HOSTAPD_CONF"
 echo "ctrl_interface_group=0" >> "$HOSTAPD_CONF"
 echo "beacon_int=100" >> "$HOSTAPD_CONF"
