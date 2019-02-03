@@ -20,6 +20,10 @@ DHCPD_LOG_FILE=$(cat /tmp/wifi-bridge-log-path)
 
 source /tmp/wifi-bridge.config
 
+HOSTNAME=`cat /etc/hostname`
+
+AP_SSID="$HOSTNAME"
+
 KillProcess
 
 HOSTAPD_CONF="/tmp/wpa_supplicant.conf"

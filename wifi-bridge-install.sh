@@ -18,6 +18,9 @@ SAMBA_SHARE_PATH="/share"
 SAMBA_SHARE_PATH_LOG="/tmp/log"
 SAMBA_CONFIG_PATH="/etc/wifi-bridge/smb.conf"
 NGINX_CONFIG_PATH="/etc/wifi-bridge/nginx.conf"
+NAMES=(Batman Bruce Wayne Alfred Pennyworth Batgirl Barbara Gordon Robin Dick Grayson Ellen Yin Ethan Bennett Angel Rojas James Gordon Martian Manhunter Superman Hawkman Flash Joker Bane Penguin Man-Bat MrFreeze Catwoman Hideo Katsu Firefly Phosphorus Cluemaster Ventriloquist Scarface Clayface Riddler Killer Croc Hugo Ragdoll Spellbinder Temblor Poison Ivy Gearhead Toymaker Maxie Zeus Prank DAVE Tony Zucco Bruiser KillerMoth ClayfaceII EverywhereMan BlackMask NumberOne HarleyQuinn FrancisGrey Rumor TheJoining LexLuthor Metallo MercyGraves CountVertigo Blaise MirrorMaster Smoke Sinestro MartySlacker TerribleTrio ShadowThief Toyman ThugsEdit Riddlemen Killer Maxie)
+
+
 
 if [ -d "/etc/wifi-bridge" ]; then  
    rm -R "/etc/wifi-bridge"
@@ -31,8 +34,12 @@ sudo apt-get update
 
 EchoStatus $? "Packet manager update"
 
-sudo apt-get -y install wireless-tools isc-dhcp-client isc-dhcp-server sed iptables samba nginx libssl-dev libnl2 libnl2-dev
+sudo apt-get -y install figlet wireless-tools isc-dhcp-client isc-dhcp-server sed iptables samba nginx libssl-dev libnl2 libnl2-dev
 EchoStatus $? "Packet manager install dependencies"
+
+HOSTNAME=${NAMES[$RANDOM % ${#NAMES[@]} ]}
+
+HOSTNAME="$HOSTNAME-$RANDOM"
 
 # Remove any previous hostapd files
 sudo apt-get purge -y hostapd
@@ -189,7 +196,7 @@ EchoStatus $? "$SAMBA_SHARE_PATH_LOG creation"
 
 echo "[global]" > "$SAMBA_CONFIG_PATH"
 echo "       workgroup = WORKGROUP" >> "$SAMBA_CONFIG_PATH"
-echo "       netbios name = wifi-bridge" >> "$SAMBA_CONFIG_PATH"
+echo "       netbios name = $HOSTNAME" >> "$SAMBA_CONFIG_PATH"
 echo "       map to guest = Bad User" >> "$SAMBA_CONFIG_PATH"
 echo "       log file = /var/log/samba/%m" >> "$SAMBA_CONFIG_PATH"
 echo "       log level = 1" >> "$SAMBA_CONFIG_PATH"
@@ -252,3 +259,8 @@ EchoStatus $? "Disable apache2 autostart (if not install could be NOK)"
 update-rc.d -f nginx disable
 EchoStatus $? "Disable nginx autostart"
 
+echo "$HOSTNAME" > /etc/hostname
+
+echo "figlet $HOSTNAME" >> ~/.bashrc 
+
+echo "hostname randomly set to => $HOSTNAME"
